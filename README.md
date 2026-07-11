@@ -78,7 +78,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 ## Deployment
 
-See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for platform-specific guides (Railway, Render, Fly.io, Vercel).
+See [DEPLOY.md](DEPLOY.md) for platform-specific guides (Vercel, Render, Docker).
 
 ## Roadmap
 

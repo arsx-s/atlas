@@ -1,0 +1,80 @@
+services:
+  - type: web
+    name: atlas-backend
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn atlas_backend.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHONPATH
+        value: /opt/render/project/src/src
+      - key: ATLAS_ENV
+        value: production
+      - key: ATLAS_RUNTIME_MODE
+        value: hybrid
+      - key: ATLAS_API_BASE_PATH
+        value: /api/v1
+      - key: ATLAS_HTTPS_ONLY
+        value: "true"
+      - key: ATLAS_LOG_LEVEL
+        value: info
+      - key: ATLAS_LOCAL_MODE_ENABLED
+        value: "false"
+      - key: ATLAS_LOCAL_MODELS_ENABLED
+        value: "false"
+      - key: ATLAS_CLOUD_SYNC_ENABLED
+        value: "false"
+      - key: ATLAS_KNOWLEDGE_GRAPH_ENABLED
+        value: "false"
+      - key: ATLAS_SQLITE_PATH
+        value: /var/data/atlas.db
+      - key: ATLAS_DOCUMENTS_PATH
+        value: /var/data/documents
+      - key: ATLAS_STORAGE_PATH
+        value: /var/data/storage
+      - key: ATLAS_STORAGE_TYPE
+        value: filesystem
+      - key: ATLAS_OCR_PROVIDER
+        value: tesseract
+      - key: ATLAS_CHUNKING_STRATEGY
+        value: semantic
+      - key: ATLAS_MAX_DOCUMENT_SIZE_MB
+        value: "100"
+      - key: ATLAS_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: ATLAS_JWT_SECRET
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: BRAVE_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: NEO4J_URL
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: ATLAS_CORS_ALLOWED_ORIGINS
+        value: https://your-frontend.vercel.app
+    disk:
+      name: atlas-data
+      mountPath: /var/data
+      sizeGB: 1

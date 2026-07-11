@@ -1,0 +1,16 @@
+{
+  "name": "atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source AI research workspace.",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:desktop": "cd apps/desktop && npm run start",
+    "build:web": "cd apps/web && npm run build",
+    "test:backend": "cd backend && python -m unittest discover -s ../tests",
+    "test:web": "cd apps/web && npx vitest run"
+  }
+}

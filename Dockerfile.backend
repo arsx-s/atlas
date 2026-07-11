@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1
+FROM python:3.12-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+    libcups2 libdrm2 libdbus-1-3 libxkbcommon0 libxcomposite1 \
+    libxdamage1 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 \
+    libcairo2 libpixman-1-0 libjpeg62-turbo libopenjp2-7 \
+    libwebp7 libtiff6 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY backend/pyproject.toml backend/README.md /app/
+RUN pip install --no-cache-dir -e /app 2>/dev/null || \
+    pip install --no-cache-dir \
+        fastapi>=0.111 uvicorn[standard]>=0.30 \
+        pydantic>=2.8 httpx>=0.27 \
+        pdfplumber>=0.10.0 python-docx>=1.1.0 \
+        markdown>=3.5 Pillow>=10.0 numpy>=1.26 \
+        structlog>=24.2 sqlalchemy>=2.0 \
+        openai>=1.30 anthropic>=0.30 \
+        tiktoken>=0.7 boto3>=1.34 \
+        neo4j>=5.22 qdrant-client>=1.10 redis>=5.0
+
+ENV PYTHONPATH=/app/src \
+    ATLAS_ENV=production \
+    ATLAS_SQLITE_PATH=/data/atlas-local.db \
+    ATLAS_DOCUMENTS_PATH=/data/documents \
+    ATLAS_STORAGE_PATH=/data/storage
+
+RUN mkdir -p /data/documents /data/storage
+
+EXPOSE 8000
+
+FROM base AS dev
+ENV ATLAS_ENV=development
+RUN pip install --no-cache-dir pytest pytest-asyncio ruff mypy
+CMD ["uvicorn", "atlas_backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+FROM base AS production
+COPY backend/src/ /app/src/
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; import sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status == 200 else 1)"
+CMD ["uvicorn", "atlas_backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--proxy-headers", "--forwarded-allow-ips", "*"]

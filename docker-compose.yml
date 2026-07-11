@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - atlas-data:/data
+      - ./backend/src:/app/src
+    env_file:
+      - .env
+    environment:
+      - ATLAS_ENV=development
+      - ATLAS_SQLITE_PATH=/data/atlas-local.db
+      - ATLAS_DOCUMENTS_PATH=/data/documents
+      - ATLAS_CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:4173,http://127.0.0.1:5173,http://localhost:8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; import sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  atlas-data:

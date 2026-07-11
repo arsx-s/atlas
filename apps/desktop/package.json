@@ -1,0 +1,84 @@
+{
+  "name": "atlas-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Atlas - AI Research Workspace",
+  "author": "Atlas Research",
+  "license": "MIT",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron .",
+    "build": "electron-builder --dir",
+    "dist": "electron-builder --win --x64",
+    "dist:win": "electron-builder --win --x64",
+    "dist:win:portable": "electron-builder --win --x64 --config.win.target=portable",
+    "dist:mac": "electron-builder --mac",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.atlas.research.workspace",
+    "productName": "Atlas",
+    "copyright": "Copyright © 2026 Atlas Research",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "asar": true,
+    "compression": "maximum",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "**/*",
+      "!dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../../backend",
+        "to": "backend",
+        "filter": ["**/*", "!__pycache__", "!**/*.pyc", "!.git"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Atlas",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "guid": "e8f7a5c3-2d1b-4f9a-8e6d-7c5b4a3f2e1d"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}",
+      "unpackDirName": "Atlas"
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://releases.atlas-research.app",
+      "channel": "alpha"
+    }
+  }
+}

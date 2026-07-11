@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+*.so
+
+# Build outputs
+dist/
+build/
+coverage/
+.coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.tsbuildinfo
+
+# Local environment
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# Atlas local data
+.atlas/
+local-data/
+uploads/
+exports/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/

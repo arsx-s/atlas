@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Atlas</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div>
+          <div class="brand">Atlas</div>
+          <div class="subtitle">Local-first AI research</div>
+        </div>
+        <nav class="nav" aria-label="Primary">
+          <button class="nav-item active" data-panel="dashboard">Dashboard</button>
+          <button class="nav-item" data-panel="research">Research</button>
+          <button class="nav-item" data-panel="projects">Projects</button>
+          <button class="nav-item" data-panel="documents">Documents</button>
+          <button class="nav-item" data-panel="settings">Settings</button>
+        </nav>
+        <div class="sidebar-footer">
+          <button id="launch-backend" class="ghost">Launch Backend</button>
+          <button id="restart-backend" class="ghost">Restart Backend</button>
+          <button id="check-updates" class="ghost">Check Updates</button>
+          <button id="select-file" class="ghost">Import File</button>
+          <button id="get-user-data" class="ghost">User Data Path</button>
+        </div>
+      </aside>
+      <main class="content">
+        <section class="panel active" id="dashboard">
+          <div class="header-row">
+            <h1>Dashboard</h1>
+            <div class="header-badges">
+              <span id="backend-status" class="badge">Checking…</span>
+              <span id="update-status" class="badge">idle</span>
+            </div>
+          </div>
+          <div class="grid">
+            <article class="card">
+              <h2>Research Session</h2>
+              <label>Project ID <input id="project-id" value="local-project" /></label>
+              <label>User ID <input id="user-id" value="local-user" /></label>
+              <label>Title <input id="session-title" value="Market research" /></label>
+              <label>Query <textarea id="session-query">Summarize the market landscape for local AI research tools.</textarea></label>
+              <button id="create-session">Create Session</button>
+              <pre id="session-output"></pre>
+            </article>
+            <article class="card">
+              <h2>Backend</h2>
+              <pre id="status-output">Waiting…</pre>
+            </article>
+          </div>
+        </section>
+        <section class="panel" id="research">
+          <h1>Research</h1>
+          <label>Search query <input id="search-query" value="local-first AI research workspace" /></label>
+          <button id="search-research">Run Search</button>
+          <pre id="search-output"></pre>
+          <p>Research workflows are backed by the Atlas backend API.</p>
+        </section>
+        <section class="panel" id="projects">
+          <h1>Projects</h1>
+          <p>Projects are wired through the backend data model and will surface once persistence is connected.</p>
+        </section>
+        <section class="panel" id="documents">
+          <h1>Documents</h1>
+          <p>Use the import button to select local files for future document indexing and analysis workflows.</p>
+        </section>
+        <section class="panel" id="settings">
+          <h1>Settings</h1>
+          <p>Settings sync and model selection are backed by the backend configuration store.</p>
+        </section>
+      </main>
+    </div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
 
 
 def configure_logging(level: str = "INFO") -> None:
@@ -19,6 +18,13 @@ def configure_logging(level: str = "INFO") -> None:
         )
         return
 
+    logging.basicConfig(
+        level=level.upper(),
+        format="%(message)s",
+        stream=sys.stdout,
+        force=True,
+    )
+
     structlog.configure(
         processors=[
             structlog.stdlib.filter_by_level,
@@ -32,10 +38,6 @@ def configure_logging(level: str = "INFO") -> None:
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
-
-    root = structlog.getLogger()
-    root.setLevel(level.upper())
-    return None

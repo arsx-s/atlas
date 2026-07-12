@@ -4,12 +4,13 @@ services:
     env: python
     region: oregon
     plan: starter
+    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn atlas_backend.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers --forwarded-allow-ips "*"
     healthCheckPath: /api/v1/health
     envVars:
       - key: PYTHONPATH
-        value: /opt/render/project/src/src
+        value: /opt/render/project/src/backend/src
       - key: ATLAS_ENV
         value: production
       - key: ATLAS_RUNTIME_MODE

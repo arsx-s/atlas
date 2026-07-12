@@ -25,7 +25,8 @@ def create_health_router(settings: AtlasSettings) -> Any:
     async def health() -> Any:
         report = build_liveness_report(settings)
         data = report.model_dump()
-        db_path = Path(settings.sqlite_path)
+        db_path_str = settings.sqlite_path or "atlas-local.db"
+        db_path = Path(db_path_str)
         data["first_run"] = not db_path.exists()
         return create_success_response(data)
 

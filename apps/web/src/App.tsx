@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { api } from './api';
 
-type Section = 'home' | 'research' | 'projects' | 'library' | 'reports' | 'settings';
+type Section = 'chat' | 'research' | 'projects' | 'library' | 'reports' | 'settings';
 
 interface BackendHealth {
   status: string;
@@ -118,9 +118,10 @@ function Sidebar({ active, onNavigate, theme, onToggleTheme, backend, user, onLo
   theme: string; onToggleTheme: () => void; backend: BackendHealth;
   user: UserInfo | null; onLogout: () => void;
 }) {
+  const navigate = useNavigate();
   const nav = [
-    { id: 'home' as Section, label: 'Home', desc: 'Dashboard' },
-    { id: 'research' as Section, label: 'Research', desc: 'AI research workspace' },
+    { id: 'chat' as Section, label: 'Chat', desc: 'AI research assistant' },
+    { id: 'research' as Section, label: 'Research', desc: 'Advanced research workspace' },
     { id: 'projects' as Section, label: 'Projects', desc: 'Manage projects' },
     { id: 'library' as Section, label: 'Library', desc: 'Documents & sources' },
     { id: 'reports' as Section, label: 'Reports', desc: 'Generated reports' },
@@ -162,7 +163,7 @@ function Sidebar({ active, onNavigate, theme, onToggleTheme, backend, user, onLo
             <button className="btn btn-secondary btn-sm" onClick={onLogout}>Logout</button>
           </div>
         ) : (
-          <button className="btn btn-primary btn-sm" onClick={() => window.location.href = '/login'}>Sign In</button>
+          <button className="btn btn-primary btn-sm" onClick={() => navigate('/login')}>Sign In</button>
         )}
       </div>
     </aside>
@@ -210,7 +211,7 @@ function LoginPage() {
           </button>
         </form>
         <p className="auth-footer">
-          Don't have an account? <a href="/register">Register</a>
+          Don't have an account? <Link to="/register">Register</Link>
         </p>
       </div>
     </div>
@@ -262,7 +263,7 @@ function RegisterPage() {
           </button>
         </form>
         <p className="auth-footer">
-          Already have an account? <a href="/login">Sign in</a>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </div>
     </div>
@@ -303,7 +304,7 @@ function HomeView({ onNavigate }: { onNavigate: (s: Section) => void }) {
       </div>
 
       <div className="quick-search">
-        <input className="search-input" placeholder="Quick search projects and documents..." />
+        <input className="search-input" placeholder="Quick search projects and documents..." disabled aria-label="Search (coming soon)" />
       </div>
 
       <div className="feature-grid">
@@ -345,17 +346,191 @@ function HomeView({ onNavigate }: { onNavigate: (s: Section) => void }) {
   );
 }
 
+// --------------- Chat View ---------------
+function ChatView() {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState<'idle' | 'creating' | 'thinking'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ResearchSession[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => localStorage.getItem('atlas-active-project-id'));
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(() => localStorage.getItem('atlas-active-session-id'));
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('atlas-chat-messages');
+    if (saved) { try { setMessages(JSON.parse(saved)); } catch {} }
+  }, []);
+
+  useEffect(() => {
+    if (activeProjectId) {
+      api.listResearchSessions(activeProjectId).then(d => setSessions(d.sessions || [])).catch(() => {});
+    } else {
+      setSessions([]);
+    }
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    if (activeSessionId) {
+      api.getResearchSession(activeSessionId).then(s => { if (s.messages) setMessages(s.messages); }).catch(() => {});
+    }
+  }, [activeSessionId]);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  const persist = (pid: string | null, sid: string | null, msgs: ChatMessage[]) => {
+    if (pid !== null) localStorage.setItem('atlas-active-project-id', pid);
+    if (sid !== null) localStorage.setItem('atlas-active-session-id', sid);
+    localStorage.setItem('atlas-chat-messages', JSON.stringify(msgs));
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading !== 'idle') return;
+    const text = input.trim();
+    const userMsg: ChatMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setInput('');
+    persist(activeProjectId, activeSessionId, newMessages);
+    if (!activeSessionId) {
+      setLoading('creating');
+      setError(null);
+      try {
+        const res = await api.quickChat(text);
+        setActiveProjectId(res.project_id);
+        setActiveSessionId(res.session_id);
+        setMessages(res.messages || []);
+        persist(res.project_id, res.session_id, res.messages || []);
+        const d = await api.listResearchSessions(res.project_id);
+        setSessions(d.sessions || []);
+      } catch (err: any) {
+        const errMsg = err.message || 'Failed to create workspace';
+        setError(errMsg);
+        setMessages(prev => prev.filter(m => m !== userMsg));
+        persist(activeProjectId, activeSessionId, messages);
+      } finally {
+        setLoading('idle');
+      }
+    } else if (activeSessionId && activeProjectId) {
+      setLoading('thinking');
+      setError(null);
+      try {
+        const res = await api.quickChat(text, activeProjectId, activeSessionId);
+        setMessages(res.messages || []);
+        persist(activeProjectId, activeSessionId, res.messages || []);
+      } catch (err: any) {
+        const errMsg = err.message || 'Failed to send message';
+        setError(errMsg);
+        setMessages(prev => prev.filter(m => m !== userMsg));
+        persist(activeProjectId, activeSessionId, messages);
+      } finally {
+        setLoading('idle');
+      }
+    }
+  };
+
+  const loadSession = (session: ResearchSession) => {
+    setActiveSessionId(session.session_id);
+    setActiveProjectId(session.project_id);
+    setMessages(session.messages || []);
+    setError(null);
+    persist(session.project_id, session.session_id, session.messages || []);
+  };
+
+  const newChat = () => {
+    setActiveSessionId(null);
+    setMessages([]);
+    setError(null);
+    localStorage.removeItem('atlas-active-session-id');
+    localStorage.removeItem('atlas-chat-messages');
+  };
+
+  return (
+    <div className="page chat-page">
+      <div className="chat-layout">
+        <div className="chat-sidebar">
+          <div className="chat-sidebar-header">
+            <h4>Conversations</h4>
+            <button className="btn btn-secondary btn-sm" onClick={newChat}>+ New</button>
+          </div>
+          {sessions.length === 0 ? (
+            <div className="empty-state-sm"><p>No conversations yet</p></div>
+          ) : (
+            <div className="session-list">
+              {sessions.map(s => (
+                <button key={s.session_id} className={`session-item ${activeSessionId === s.session_id ? 'active' : ''}`}
+                  onClick={() => loadSession(s)}>
+                  <span className="session-title">{s.title}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="chat-main">
+          {messages.length === 0 ? (
+            <div className="chat-empty">
+              <h2 className="hero-title">What would you like to research?</h2>
+              <p className="chat-empty-sub">Ask a question and I'll automatically create a workspace and start researching.</p>
+              <div className="chat-empty-prompt">
+                <textarea className="prompt-input" placeholder="Type your research question..." value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  rows={3} disabled={loading !== 'idle'} />
+                <button className="btn btn-primary" onClick={sendMessage} disabled={!input.trim() || loading !== 'idle'}
+                  style={{ alignSelf: 'flex-end' }}>
+                  {loading === 'creating' ? 'Creating...' : 'Start Research'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="chat-messages-area">
+              <div className="chat-messages">
+                {messages.map((m, i) => (
+                  <div key={i} className={`message message-${m.role}`}>
+                    <div className="message-role">{m.role === 'user' ? 'You' : 'Atlas'}</div>
+                    <div className="message-content">{m.content}</div>
+                  </div>
+                ))}
+                {loading === 'thinking' && (
+                  <div className="message message-assistant">
+                    <div className="typing-indicator"><span /><span /><span /></div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+              {loading === 'creating' && <div className="creating-banner">Creating workspace...</div>}
+              {error && <div className="error-banner">{error} <button className="btn btn-secondary btn-sm" onClick={() => setError(null)}>Dismiss</button></div>}
+              <div className="chat-input-area">
+                <textarea className="chat-input" placeholder="Ask a follow-up question..." value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  rows={2} disabled={loading !== 'idle'} />
+                <div className="chat-actions">
+                  <button className="btn btn-primary" onClick={sendMessage} disabled={!input.trim() || loading !== 'idle'}>
+                    {loading === 'creating' ? 'Creating...' : loading === 'thinking' ? 'Thinking...' : 'Send'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --------------- Research Page ---------------
 function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
   const [sessions, setSessions] = useState<ResearchSession[]>([]);
   const [activeSession, setActiveSession] = useState<ResearchSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [queryInput, setQueryInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [sessionTitle, setSessionTitle] = useState('');
   const [projectId, setProjectId] = useState(defaultProjectId || '');
   const [projects, setProjects] = useState<Project[]>([]);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [evidence, setEvidence] = useState<any[]>([]);
   const [report, setReport] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'sources' | 'report'>('chat');
@@ -377,7 +552,7 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
     setActiveSession(session);
     setMessages(session.messages || []);
     setReport(null);
-    setSearchResults([]);
+    setError('');
     try {
       const ev = await api.listEvidence(session.session_id);
       setEvidence(ev.evidence || []);
@@ -385,32 +560,38 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
   }, []);
 
   const createSession = async () => {
-    if (!projectId || !sessionTitle.trim() || !input.trim()) return;
+    setError('');
+    if (!projectId) { setError('Please select a project.'); return; }
+    if (!sessionTitle.trim()) { setError('Please enter a session title.'); return; }
+    if (!queryInput.trim()) { setError('Please enter an initial research query.'); return; }
     setLoading(true);
     try {
-      const res = await api.createResearchSession(projectId, sessionTitle, input);
+      const res = await api.createResearchSession(projectId, sessionTitle, queryInput);
       const session: ResearchSession = {
         session_id: res.session_id,
         project_id: projectId,
         title: sessionTitle,
-        query: input,
+        query: queryInput,
         status: res.status,
-        messages: [{ role: 'user', content: input, timestamp: new Date().toISOString() }],
+        messages: [{ role: 'user', content: queryInput, timestamp: new Date().toISOString() }],
         created_at: new Date().toISOString(),
       };
       setSessions(prev => [session, ...prev]);
       setActiveSession(session);
       setMessages(session.messages);
       setSessionTitle('');
+      setQueryInput('');
     } catch (err: any) {
-      alert('Failed to create session: ' + err.message);
+      setError('Failed to create session: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const sendMessage = async () => {
-    if (!activeSession || !input.trim()) return;
+    if (!activeSession) { setError('No active session. Select or create a session first.'); return; }
+    if (!input.trim()) { setError('Please enter a message.'); return; }
+    setError('');
     const userMsg: ChatMessage = { role: 'user', content: input, timestamp: new Date().toISOString() };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -428,7 +609,8 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
   };
 
   const runFullResearch = async () => {
-    if (!activeSession) return;
+    if (!activeSession) { setError('No active session. Select or create a session first.'); return; }
+    setError('');
     setLoading(true);
     try {
       const res = await api.runResearch(activeSession.session_id);
@@ -436,21 +618,22 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
       setEvidence(ev.evidence || []);
       setActiveTab('sources');
     } catch (err: any) {
-      alert('Research failed: ' + err.message);
+      setError('Research failed: ' + err.message);
     } finally {
       setLoading(false);
     }
   };
 
   const doGenerateReport = async () => {
-    if (!activeSession) return;
+    if (!activeSession) { setError('No active session. Select or create a session first.'); return; }
+    setError('');
     setLoading(true);
     try {
       const res = await api.generateReport(activeSession.session_id);
       setReport(res);
       setActiveTab('report');
     } catch (err: any) {
-      alert('Report generation failed: ' + err.message);
+      setError('Report generation failed: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -461,17 +644,21 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
       <div className="research-header">
         <h2>Research Workspace</h2>
         <div className="research-controls">
-          <select className="select-input" value={projectId} onChange={e => setProjectId(e.target.value)}>
+          <select className="select-input" value={projectId} onChange={e => { setProjectId(e.target.value); setError(''); }}>
             <option value="">Select project...</option>
             {projects.map(p => <option key={p.project_id} value={p.project_id}>{p.name}</option>)}
           </select>
-          <div className="new-session-form">
-            <input className="input" placeholder="Session title" value={sessionTitle} onChange={e => setSessionTitle(e.target.value)} />
-            <button className="btn btn-primary" onClick={createSession} disabled={!projectId || !sessionTitle || loading}>
-              New Session
-            </button>
-          </div>
+          {!activeSession && (
+            <div className="new-session-form">
+              <input className="input" placeholder="Session title" value={sessionTitle} onChange={e => { setSessionTitle(e.target.value); setError(''); }} />
+              <textarea className="input" placeholder="Research question (initial query)" value={queryInput} onChange={e => { setQueryInput(e.target.value); setError(''); }} rows={1} style={{ padding: '10px 16px', resize: 'vertical' }} />
+              <button className="btn btn-primary" onClick={createSession} disabled={!projectId || !sessionTitle.trim() || loading}>
+                {loading ? 'Creating...' : 'New Session'}
+              </button>
+            </div>
+          )}
         </div>
+        {error && <div className="error-banner" style={{ marginTop: 8 }}>{error} <button className="btn btn-secondary btn-sm" onClick={() => setError('')}>Dismiss</button></div>}
       </div>
 
       <div className="research-layout">
@@ -504,7 +691,7 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
           {activeTab === 'chat' && (
             <div className="chat-panel">
               {messages.length === 0 && !activeSession && (
-                <div className="empty-state"><p>Select or create a research session to begin</p></div>
+                <div className="empty-state"><p>Select a project and create a new session above to begin.</p></div>
               )}
               {messages.length === 0 && activeSession && (
                 <div className="empty-state"><p>Send a message to start the conversation</p></div>
@@ -519,22 +706,20 @@ function ResearchPage({ projectId: defaultProjectId }: { projectId?: string }) {
                 {loading && <div className="message message-assistant"><div className="typing-indicator"><span /><span /><span /></div></div>}
                 <div ref={chatEndRef} />
               </div>
-              {activeSession && (
-                <div className="chat-input-area">
-                  <textarea className="chat-input" placeholder="Ask a research question..." value={input}
-                    onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                    rows={2} disabled={loading} />
-                  <div className="chat-actions">
-                    <button className="btn btn-primary" onClick={sendMessage} disabled={!input.trim() || loading}>Send</button>
-                    <button className="btn btn-secondary" onClick={runFullResearch} disabled={!activeSession || loading}>
-                      {loading ? 'Researching...' : 'Run Research'}
-                    </button>
-                    <button className="btn btn-secondary" onClick={doGenerateReport} disabled={!activeSession || loading}>
-                      Generate Report
-                    </button>
-                  </div>
+              <div className="chat-input-area">
+                <textarea className="chat-input" placeholder={activeSession ? "Ask a research question..." : "Create a session above to start chatting"} value={input}
+                  onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  rows={2} disabled={loading || !activeSession} />
+                <div className="chat-actions">
+                  <button className="btn btn-primary" onClick={sendMessage} disabled={!input.trim() || loading || !activeSession}>Send</button>
+                  <button className="btn btn-secondary" onClick={runFullResearch} disabled={!activeSession || loading}>
+                    {loading ? 'Researching...' : 'Run Research'}
+                  </button>
+                  <button className="btn btn-secondary" onClick={doGenerateReport} disabled={!activeSession || loading}>
+                    Generate Report
+                  </button>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -894,14 +1079,14 @@ function SettingsPage() {
   };
 
   const settings = [
-    { label: 'Models', desc: 'Configure AI models and providers' },
-    { label: 'Research', desc: 'Research workflow defaults' },
-    { label: 'Privacy', desc: 'Data privacy and storage' },
-    { label: 'Cloud', desc: 'Cloud sync settings' },
-    { label: 'Local AI', desc: 'Local model configuration' },
+    { label: 'Models', desc: 'Configure AI models and providers', comingSoon: true },
+    { label: 'Research', desc: 'Research workflow defaults', comingSoon: true },
+    { label: 'Privacy', desc: 'Data privacy and storage', comingSoon: true },
+    { label: 'Cloud', desc: 'Cloud sync settings', comingSoon: true },
+    { label: 'Local AI', desc: 'Local model configuration', comingSoon: true },
     { label: 'Appearance', desc: 'Theme and display', action: toggleTheme, activeLabel: `Theme: ${theme}` },
-    { label: 'Keyboard', desc: 'Keyboard shortcuts' },
-    { label: 'About', desc: 'Version and credits' },
+    { label: 'Keyboard', desc: 'Keyboard shortcuts', comingSoon: true },
+    { label: 'About', desc: 'Version and credits', comingSoon: true },
   ];
 
   return (
@@ -911,9 +1096,10 @@ function SettingsPage() {
       </div>
       <div className="settings-grid">
         {settings.map(s => (
-          <div key={s.label} className="settings-card" onClick={s.action}>
+          <div key={s.label} className={`settings-card${s.comingSoon ? ' settings-card-disabled' : ''}`} onClick={s.action}>
             <h3>{s.label}</h3>
             <p>{s.desc}</p>
+            {s.comingSoon && <span className="settings-coming-soon">Coming Soon</span>}
             {s.activeLabel && <span className="settings-value">{s.activeLabel}</span>}
           </div>
         ))}
@@ -924,7 +1110,7 @@ function SettingsPage() {
 
 // --------------- App Shell ---------------
 function AppShell() {
-  const [active, setActive] = useState<Section>('home');
+  const [active, setActive] = useState<Section>('chat');
   const [theme, setTheme] = useState<'light' | 'dark'>(() => (document.documentElement.dataset.theme as any) || 'dark');
   const [backend, setBackend] = useState<BackendHealth>({ status: 'checking' });
   const [showWelcome, setShowWelcome] = useState(false);
@@ -963,13 +1149,13 @@ function AppShell() {
 
   const renderPage = () => {
     switch (active) {
-      case 'home': return <HomeView onNavigate={setActive} />;
+      case 'chat': return <ChatView />;
       case 'research': return <ResearchPage />;
       case 'projects': return <ProjectsPage />;
       case 'library': return <LibraryPage />;
       case 'reports': return <ReportsPage />;
       case 'settings': return <SettingsPage />;
-      default: return <HomeView onNavigate={setActive} />;
+      default: return <ChatView />;
     }
   };
 
@@ -995,15 +1181,15 @@ function WelcomeOverlay({ onDismiss }: { onDismiss: () => void }) {
         <div className="welcome-steps">
           <div className="welcome-step">
             <span className="step-num">1</span>
-            <div><strong>Create a Project</strong><p>Organize research into projects</p></div>
+            <div><strong>Ask Anything</strong><p>Just type your question — projects and workspaces are created automatically</p></div>
           </div>
           <div className="welcome-step">
             <span className="step-num">2</span>
-            <div><strong>Upload Documents</strong><p>Import PDFs, DOCX, and markdown files</p></div>
+            <div><strong>Explore Results</strong><p>Review AI responses, dive deeper, and manage conversations</p></div>
           </div>
           <div className="welcome-step">
             <span className="step-num">3</span>
-            <div><strong>Start Researching</strong><p>Ask questions, gather evidence, generate reports</p></div>
+            <div><strong>Go Further</strong><p>Use Projects, Reports, and Research for advanced workflows</p></div>
           </div>
         </div>
         <button className="btn btn-primary welcome-btn" onClick={onDismiss}>Get Started</button>

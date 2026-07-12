@@ -93,6 +93,12 @@ export const api = {
   setSetting: (key: string, value: string) =>
     request('/settings', { method: 'POST', body: JSON.stringify({ key, value }) }),
 
+  quickChat: (message: string, projectId?: string, sessionId?: string, apiKey?: string) =>
+    request<{ project_id: string; session_id: string; response: string; messages: any[] }>('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, project_id: projectId, session_id: sessionId, api_key: apiKey }),
+    }),
+
   listNotes: (projectId: string) => request<{ notes: any[] }>(`/projects/${projectId}/notes`),
 
   uploadDocument: (projectId: string, file: File) => {

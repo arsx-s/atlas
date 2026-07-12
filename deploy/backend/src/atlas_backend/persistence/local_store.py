@@ -347,13 +347,13 @@ class AtlasLocalStore:
             fields.append("updated_at = ?")
             vals.append(now)
             vals.append(project_id)
-            connection.execute(f"UPDATE projects SET {', '.join(fields)} WHERE project_id = ?", vals)
-            return connection.rowcount > 0
+            cursor = connection.execute(f"UPDATE projects SET {', '.join(fields)} WHERE project_id = ?", vals)
+            return cursor.rowcount > 0
 
     def delete_project(self, project_id: str) -> bool:
         with self._lock, self._connect() as connection:
-            connection.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
-            return connection.rowcount > 0
+            cursor = connection.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
+            return cursor.rowcount > 0
 
     # --- Notes ---
     def create_note(self, note: dict[str, Any]) -> str:
@@ -430,8 +430,8 @@ class AtlasLocalStore:
 
     def delete_document(self, document_id: str) -> bool:
         with self._lock, self._connect() as connection:
-            connection.execute("DELETE FROM documents WHERE document_id = ?", (document_id,))
-            return connection.rowcount > 0
+            cursor = connection.execute("DELETE FROM documents WHERE document_id = ?", (document_id,))
+            return cursor.rowcount > 0
 
     # --- Document Chunks ---
     def save_chunks(self, chunks: list[dict[str, Any]]) -> None:
@@ -479,7 +479,12 @@ class AtlasLocalStore:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM research_sessions WHERE project_id = ? ORDER BY created_at DESC", (project_id,)).fetchall()
-            return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                d = dict(r)
+                d["messages"] = json.loads(d["messages"]) if d["messages"] else []
+                result.append(d)
+            return result
 
     def update_research_session(self, session_id: str, updates: dict[str, Any]) -> bool:
         with self._lock, self._connect() as connection:
@@ -501,8 +506,8 @@ class AtlasLocalStore:
                 vals.append(updates["completed_at"])
             if not fields: return False
             vals.append(session_id)
-            connection.execute(f"UPDATE research_sessions SET {', '.join(fields)} WHERE session_id = ?", vals)
-            return connection.rowcount > 0
+            cursor = connection.execute(f"UPDATE research_sessions SET {', '.join(fields)} WHERE session_id = ?", vals)
+            return cursor.rowcount > 0
 
     # --- Research Evidence ---
     def save_evidence(self, evidence: dict[str, Any]) -> str:

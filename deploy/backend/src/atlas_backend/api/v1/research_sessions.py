@@ -58,6 +58,42 @@ def create_research_router(settings: Any, store: AtlasLocalStore) -> Any:
     router = APIRouter(tags=["research"])
     search_service = SearchService()
 
+    @router.post("/chat")
+    async def quick_chat(payload: dict[str, Any]) -> Any:
+        """Auto-create project+session+chat in one call."""
+        message = payload.get("message", "").strip()
+        if not message:
+            raise AtlasException(AtlasErrorCode.VALIDATION_ERROR, "Message is required.")
+        user_id = payload.get("user_id", "local-user")
+        model = payload.get("model", "gpt-4")
+        api_key = payload.get("api_key", "")
+        project_id = payload.get("project_id", "")
+        if not project_id:
+            projects = store.list_projects(user_id)
+            if projects:
+                project_id = projects[-1]["project_id"]
+            else:
+                project_id = str(uuid4())
+                store.create_project({"project_id": project_id, "user_id": user_id, "name": "Research Project", "description": "Auto-created project for AI research", "tags": []})
+                store.record_timeline_event({"event_id": str(uuid4()), "project_id": project_id, "event_type": "project_created", "description": "Project 'Research Project' created automatically"})
+        session_id = payload.get("session_id", "")
+        if not session_id:
+            session_id = str(uuid4())
+            title = message[:60] + ("..." if len(message) > 60 else "")
+            store.create_research_session({"session_id": session_id, "project_id": project_id, "user_id": user_id, "title": title, "query": message, "description": "", "status": "active", "model_used": model, "messages": []})
+            messages = []
+        else:
+            row = store.get_research_session(session_id)
+            if not row:
+                raise AtlasException(AtlasErrorCode.NOT_FOUND, f"Research session '{session_id}' not found.")
+            messages = row.get("messages", [])
+        messages.append({"role": "user", "content": message, "timestamp": datetime.now(timezone.utc).isoformat()})
+        response = _call_llm(message, model, api_key)
+        messages.append({"role": "assistant", "content": response, "timestamp": datetime.now(timezone.utc).isoformat()})
+        store.update_research_session(session_id, {"messages": messages})
+        store.save_evidence({"evidence_id": str(uuid4()), "session_id": session_id, "evidence_type": "analysis", "title": message[:80], "content": response, "source_url": None, "source_document": None, "confidence_score": 1.0, "tags": [], "collected_by_task": None})
+        return create_success_response({"project_id": project_id, "session_id": session_id, "response": response, "messages": messages})
+
     @router.post("/research-sessions")
     async def create_research_session(payload: dict[str, Any]) -> Any:
         project_id = payload.get("project_id", "")

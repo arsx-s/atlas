@@ -479,7 +479,12 @@ class AtlasLocalStore:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM research_sessions WHERE project_id = ? ORDER BY created_at DESC", (project_id,)).fetchall()
-            return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                d = dict(r)
+                d["messages"] = json.loads(d["messages"]) if d["messages"] else []
+                result.append(d)
+            return result
 
     def update_research_session(self, session_id: str, updates: dict[str, Any]) -> bool:
         with self._lock, self._connect() as connection:

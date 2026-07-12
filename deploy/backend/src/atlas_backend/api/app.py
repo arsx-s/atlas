@@ -13,6 +13,7 @@ from atlas_backend.api.v1.local import create_local_router
 from atlas_backend.api.v1.projects import create_project_router
 from atlas_backend.api.v1.research_sessions import create_research_router
 from atlas_backend.api.v1.search import create_search_router
+from atlas_backend.api.v1.settings import create_settings_router
 from atlas_backend.api.v1.sync import create_sync_router
 from atlas_backend.api.v1.export import create_export_router
 from atlas_backend.api.v1.monitoring import create_monitoring_router
@@ -106,6 +107,7 @@ def create_app(settings: AtlasSettings | None = None) -> Any:
     app.include_router(create_auth_router(selected_settings, store), prefix=prefix)
     app.include_router(create_sync_router(selected_settings), prefix=prefix)
     app.include_router(create_search_router(selected_settings), prefix=prefix)
+    app.include_router(create_settings_router(store), prefix=prefix)
     app.include_router(create_project_router(selected_settings, store), prefix=prefix)
     app.include_router(create_document_router(selected_settings, store), prefix=prefix)
     app.include_router(create_local_router(), prefix=prefix)

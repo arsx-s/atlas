@@ -47,7 +47,7 @@ cp .env.example .env
 docker compose up
 ```
 
-Open http://localhost
+Open [http://localhost](https://atlas-hkur32hd3-atlas-labsx.vercel.app/)
 
 ## Development
 

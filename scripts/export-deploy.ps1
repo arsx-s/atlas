@@ -95,6 +95,10 @@ dist/
 Thumbs.db
 "@
 
+Write-FileNoBom -Path (Join-Path $FRONTEND_DST ".env.example") -Value @"
+# VITE_ATLAS_API_BASE_URL=https://your-backend.onrender.com/api/v1
+"@
+
 Write-Host "==> Exporting backend" -ForegroundColor Cyan
 Copy-Item -LiteralPath (Join-Path $BACKEND_SRC "pyproject.toml") -Destination (Join-Path $BACKEND_DST "pyproject.toml")
 Copy-Item -LiteralPath (Join-Path $BACKEND_SRC "requirements.txt") -Destination (Join-Path $BACKEND_DST "requirements.txt")

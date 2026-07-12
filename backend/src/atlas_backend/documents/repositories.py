@@ -3,7 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from ...documents.models import DocumentMetadata, DocumentChunk, DocumentVersion
+from .models import DocumentMetadata, DocumentChunk, DocumentVersion
 
 
 class PostgresDocumentRepository:

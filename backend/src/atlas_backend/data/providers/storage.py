@@ -13,7 +13,7 @@ class StorageProviderImpl(StorageProvider):
     """Concrete storage provider implementation using the local filesystem."""
 
     def __init__(self, root_directory: str | None = None) -> None:
-        self.root_directory = Path(root_directory or os.environ.get("ATLAS_STORAGE_ROOT", Path.cwd() / "atlas-storage"))
+        self.root_directory = Path(root_directory or os.environ.get("ATLAS_STORAGE_PATH", Path.cwd() / "atlas-storage"))
         self.root_directory.mkdir(parents=True, exist_ok=True)
 
     def _resolve(self, remote_path: str) -> Path:

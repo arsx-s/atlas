@@ -20,7 +20,7 @@ ENV PYTHONPATH=/app/src \
     ATLAS_DOCUMENTS_PATH=/data/documents \
     ATLAS_STORAGE_PATH=/data/storage
 
-RUN mkdir -p /data/documents /data/storage
+RUN mkdir -p /data/documents /data/storage /data
 
 EXPOSE 8000
 

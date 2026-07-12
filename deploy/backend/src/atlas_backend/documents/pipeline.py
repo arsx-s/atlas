@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID, uuid4
 
-from ..models import DocumentFormat, DocumentMetadata, DocumentVersion
-from ..parsers import DocumentParser
+from .models import DocumentFormat, DocumentMetadata, DocumentVersion
+from .parsers import DocumentParser
 
 
 class DocumentIngestionPipeline:

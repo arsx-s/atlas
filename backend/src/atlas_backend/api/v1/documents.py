@@ -18,8 +18,11 @@ from atlas_backend.documents.parsers.text import TextParser
 from atlas_backend.persistence import AtlasLocalStore
 
 
-UPLOAD_DIR = Path("atlas_uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+def _get_upload_dir(settings: Any) -> Path:
+    base = Path(settings.documents_storage_path or "atlas_uploads")
+    upload_dir = base / "uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
 
 
 def _get_parser(filename: str) -> DocumentParser:
@@ -55,10 +58,11 @@ def create_document_router(settings: Any, store: AtlasLocalStore) -> Any:
             raise AtlasException(AtlasErrorCode.VALIDATION_ERROR,
                                  f"File exceeds {settings.max_document_size_mb}MB limit.")
 
+        upload_dir = _get_upload_dir(settings)
         doc_id = str(uuid4())
         ext = Path(file.filename).suffix.lower()
         safe_name = f"{doc_id}{ext}"
-        file_path = UPLOAD_DIR / safe_name
+        file_path = upload_dir / safe_name
         file_path.write_bytes(content)
 
         parser = _get_parser(file.filename)
@@ -143,7 +147,6 @@ def create_document_router(settings: Any, store: AtlasLocalStore) -> Any:
         doc = store.get_document(document_id)
         if not doc:
             raise AtlasException(AtlasErrorCode.NOT_FOUND, f"Document '{document_id}' not found.")
-        store._connect()
         with store._connect() as conn:
             rows = conn.execute(
                 "SELECT chunk_id, content, page_number, section, start_char, end_char FROM document_chunks WHERE document_id = ? ORDER BY start_char",
